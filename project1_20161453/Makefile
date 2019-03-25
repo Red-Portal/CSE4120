@@ -22,4 +22,4 @@ lex.yy.c: cminus.lex
 .PHONY: clean
 
 clean:
-	rm -f *.o 
+	rm -f *.o *~ 20161453
