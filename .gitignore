@@ -6,6 +6,9 @@
 # License: CC0-1.0.			      #
 ###############################################
 
+## Lex related
+*.yy.c
+
 ## Emacs Generated Types
 *~
 \#*\#
