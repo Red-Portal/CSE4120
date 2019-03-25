@@ -69,7 +69,7 @@ whitespace [ \t]+
         default:
             break;
         }
-    } while(c != YY_END_OF_BUFFER_CHAR);
+    } while(c != EOF);
     return COMMENT_ERROR;
 }
 . {
