@@ -4,7 +4,7 @@ OBJ=
 ODIR=obj
 LIBS=-lfl
 
-cmc: util.o main.o lex.yy.o
+20161453: util.o main.o lex.yy.o
 	$(CC) $? -o $@ $(CFLAGS) $(LIBS)
 
 util.o: util.c
