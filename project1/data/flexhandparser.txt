@@ -1,0 +1,16 @@
+ Performance counter stats for './cminus_compiler test3.cm':
+
+            214.61 msec task-clock:u              #    0.624 CPUs utilized          
+                 0      context-switches:u        #    0.000 K/sec                  
+                 0      cpu-migrations:u          #    0.000 K/sec                  
+                72      page-faults:u             #    0.335 K/sec                  
+       152,021,043      cycles:u                  #    0.708 GHz                    
+       226,471,097      instructions:u            #    1.49  insn per cycle         
+        47,546,260      branches:u                #  221.548 M/sec                  
+           450,451      branch-misses:u           #    0.95% of all branches        
+
+       0.343912375 seconds time elapsed
+
+       0.038746000 seconds user
+       0.176122000 seconds sys
+
