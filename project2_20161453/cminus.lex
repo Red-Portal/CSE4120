@@ -39,7 +39,7 @@ whitespace [ \t]+
 "]"           { return RSQUARE; }
 "{"           { return LCURLY; }
 "}"           { return RCURLY; }
-","           { return COLON; }
+","           { return COMMA; }
 ";"           { return SEMICOLON; }
 {number}      { return NUM; }
 {identifier}  { strncpy(identifier, yytext, MAXTOKENLEN); return ID; }

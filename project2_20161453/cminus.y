@@ -44,27 +44,27 @@ static TreeNode* saved_tree;
 %token LCURLY
 %token RCURLY
 %token SEMICOLON
-%token COLON
+%token COMMA
 %token COMMENT
 %token ERROR
 %token COMMENT_ERROR
 
-%%
+                        %%
 
 prog: decl_list { saved_tree = $1; };
 
 decl_list:
-                decl_list decl {
-                    YYSTYPE t = $1;
-                    if(t != NULL) {
-                        while(t->sibling != NULL)
-                            t = t->sibling;
-                        t->sibling = $2;
-                        $$ = $1;
-                    } else {
-                        $$ = $2;
-                    }
-                }
+decl_list decl {
+    YYSTYPE t = $1;
+    if(t != NULL) {
+        while(t->sibling != NULL)
+            t = t->sibling;
+        t->sibling = $2;
+        $$ = $1;
+    } else {
+        $$ = $2;
+    }
+}
         |       decl { $$ = $1; };
 
 decl:
@@ -126,7 +126,7 @@ params:
         |       VOID { $$ = NULL; };
 
 param_list:
-                param_list COLON param {
+                param_list COMMA param {
                     YYSTYPE t = $1;
                     if(t != NULL) {
                         while(t->sibling != NULL)
@@ -364,17 +364,17 @@ args:
         |       args_list { $$ = $1; };
 
 args_list:
-                args_list COLON expr {
-                    YYSTYPE t = $1;
-                    if(t != NULL) {
-                        while(t->sibling != NULL)
-                            t = t->sibling;
-                        t->sibling = $3;
-                        $$ = $1;
-                    } else {
-                        $$ = $3;
-                    }
-                }
+                 args_list COMMA expr {
+                     YYSTYPE t = $1;
+                     if(t != NULL) {
+                         while(t->sibling != NULL)
+                             t = t->sibling;
+                         t->sibling = $3;
+                         $$ = $1;
+                     } else {
+                         $$ = $3;
+                     }
+                        }
         |       expr { $$ = $1; };
 
 %%
