@@ -41,6 +41,7 @@ typedef enum
     RCURLY,
     SEMICOLON,
     COLON,
+    COMMA,
     COMMENT,
     COMMENT_ERROR,
 } token_t;

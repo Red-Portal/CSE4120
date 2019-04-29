@@ -35,7 +35,8 @@ whitespace [ \t]+
 "]"           {return RSQUARE;}
 "}"           {return LCURLY;}
 "{"           {return RCURLY;}
-","           {return COLON;}
+","           {return COMMA;}
+":"           {return COLON;}
 ";"           {return SEMICOLON;}
 {number}      {return NUM;}
 {identifier}  {return ID;}
