@@ -3,8 +3,8 @@
 #include "util.h"
 #include "scan.h"
 #include "globals.h"
+#include "bison.h"
     char token_string[MAXTOKENLEN + 1];
-    char identifier[MAXTOKENLEN + 1];
 %}
 
 digit      [0-9]
@@ -41,8 +41,8 @@ whitespace [ \t]+
 "}"           { return RCURLY; }
 ","           { return COMMA; }
 ";"           { return SEMICOLON; }
-{number}      { return NUM; }
-{identifier}  { strncpy(identifier, yytext, MAXTOKENLEN); return ID; }
+{number}      { yylval.value = atoi(yytext);   return NUM; }
+{identifier}  { yylval.name  = strdup(yytext); return ID; }
 {newline}     { lineno++; }
 {whitespace}  {}
 "/*" {
@@ -107,7 +107,11 @@ TokenType getToken(void)
         current_token = ERROR;
         strncpy(token_string, "Comment Error", MAXTOKENLEN);
     }
-    else if(current_token != COMMENT)
+    else if(current_token == COMMENT)
+    {
+        return current_token;
+    }
+    else
     {
         strncpy(token_string, yytext, MAXTOKENLEN);
     }

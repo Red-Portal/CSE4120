@@ -7,64 +7,56 @@
 #include "parse.h"
 #include <string.h>
 
-#define YYSTYPE TreeNode*
-
-int yyerror(char* message);
+int yyerror(char const* message);
 static int yylex(void);
-
-static char* saved_name;
-static int saved_lineno;
-static int saved_value;
 static TreeNode* saved_tree;
 %}
 
-%token IF
-%token WHILE
-%token ELSE
-%token RETURN
-%token VOID
-%token INT
-%token ID
-%token NUM
-%token ASSIGN
-%token EQ
-%token NE
-%token LT
-%token LE
-%token GT
-%token GE
-%token PLUS
-%token MINUS
-%token ASTER
-%token DIV
-%token LPAREN
-%token RPAREN
-%token LSQUARE
-%token RSQUARE
-%token LCURLY
-%token RCURLY
-%token SEMICOLON
-%token COMMA
-%token COMMENT
-%token ERROR
-%token COMMENT_ERROR
+%union {
+    int value;
+    char* name;
+    TreeNode* node;
+    TokenType type;
+}
 
-                        %%
+%token IF WHILE ELSE RETURN ASSIGN EQ NE LT LE GT GE PLUS MINUS ASTER
+%token DIV LPAREN RPAREN LSQUARE RSQUARE LCURLY RCURLY SEMICOLON COMMA
+%token COMMENT ERROR COMMENT_ERROR
+%token <type> VOID INT
+%token <name> ID
+%token <value> NUM
+%type  <type> type_spec relop addop mulop
+%type  <node> prog decl_list decl var_decl fun_decl params param_list 
+%type  <node> param compound_stmt local_decl stmt_list stmt expr_stmt 
+%type  <node> selection_stmt iteration_stmt return_stmt expr var 
+%type  <node> simple_expr additive_expr term factor call args args_list
+
+%define parse.error verbose
+
+%destructor { free($$); } <name>
+%destructor { destroyNode($$); } <node>
+%destructor {} <>
+
+%start start
+
+%%
+
+start: prog          
 
 prog: decl_list { saved_tree = $1; };
 
 decl_list:
-decl_list decl {
-    YYSTYPE t = $1;
-    if(t != NULL) {
-        while(t->sibling != NULL)
-            t = t->sibling;
-        t->sibling = $2;
-        $$ = $1;
-    } else {
-        $$ = $2;
-    }
-}
+                decl_list decl {
+                    TreeNode* t = $1;
+                    if(t != NULL) {
+                        while(t->sibling != NULL)
+                            t = t->sibling;
+                        t->sibling = $2;
+                        $$ = $1;
+                    } else {
+                        $$ = $2;
+                    }
+                }
         |       decl { $$ = $1; };
 
 decl:
@@ -72,62 +64,46 @@ decl:
         |       fun_decl { $$ = $1; };
 
 var_decl:
-                type_spec ID {
-                    saved_name   = strdup(identifier);
-                    saved_lineno = lineno;
+                type_spec ID SEMICOLON {
+                    TreeNode* t  = newStmtNode(VarK);
+                    t->type      = $1;
+                    t->attr.name = $2;
+                    t->lineno    = lineno;
+                    t->is_array  = false;
+                    $$           = t;
                 }
-                SEMICOLON {
-                    $$            = newStmtNode(VarK);
-                    $$->attr.name = saved_name;
-                    $$->type      = $1->type;
-                    $$->lineno    = saved_lineno;
-                    free($1);
-                }
-        |       type_spec ID {
-                    saved_name   = strdup(identifier);
-                    saved_lineno = lineno;
-                }
-                LSQUARE NUM       { saved_value = atoi(token_string); }
-                RSQUARE SEMICOLON {
-                    $$            = newStmtNode(VarK);
-                    $$->attr.name = strdup(token_string);
-                    $$->val       = saved_value;
-                    $$->type      = $1->type;
-                    $$->lineno    = saved_lineno;
-                    free($1);
-                };
-type_spec:
-                INT  {
-                    $$       = newExpNode(TypeK);
-                    $$->type = Integer;
-                }
-        |       VOID {
-                    $$       = newExpNode(TypeK);
-                    $$->type = Void;
+        |       type_spec ID LSQUARE NUM RSQUARE SEMICOLON {
+                    TreeNode* t  = newStmtNode(VarK);
+                    t->type      = $1;
+                    t->attr.name = $2;
+                    t->value     = $4;
+                    t->lineno    = lineno;
+                    t->is_array  = true;
+                    $$           = t;
                 };
 
-fun_decl:
-                type_spec ID {
-                    saved_name   = strdup(identifier);
-                    saved_lineno = lineno;
-                }
-                LPAREN params RPAREN compound_stmt {
-                    $$ = newStmtNode(FunK);
-                    $$->attr.name = saved_name;
-                    $$->lineno    = saved_lineno;
-                    $$->type      = $1->type; 
-                    $$->child[0]  = $5;
-                    $$->child[1]  = $7;
-                    free($1);
+type_spec:
+                INT  { $$ = INT; } 
+        |       VOID { $$ = VOID; };
+
+fun_decl: 
+                type_spec ID LPAREN params RPAREN compound_stmt {
+                    TreeNode* t  = newStmtNode(FunK);
+                    t->lineno    = lineno;
+                    t->type      = $1;
+                    t->attr.name = $2;
+                    t->child[0]  = $4;
+                    t->child[1]  = $6;
+                    $$           = t;
                 };
 
 params:
                 param_list { $$ = $1; }
-        |       VOID { $$ = NULL; };
+        |       VOID       { $$ = NULL; };
 
 param_list:
                 param_list COMMA param {
-                    YYSTYPE t = $1;
+                    TreeNode* t = $1;
                     if(t != NULL) {
                         while(t->sibling != NULL)
                             t = t->sibling;
@@ -141,48 +117,48 @@ param_list:
 
 param:
                 type_spec ID {
-                    $$->attr.name = strdup(identifier);
-                    $$->type      = $1->type;
-                    $$->lineno    = lineno;
-                    free($1);
+                    TreeNode* t  = newStmtNode(VarK);
+                    t->type      = $1;
+                    t->attr.name = $2;
+                    t->lineno    = lineno;
+                    t->is_array  = false;
+                    $$           = t;
                 }
-        |       type_spec ID {
-                    saved_name   = strdup(identifier);
-                    saved_lineno = lineno;
-                }
-                LSQUARE RSQUARE {
-                    $$            = newStmtNode(VarK);
-                    $$->attr.name = saved_name;
-                    $$->type      = $1->type;
-                    $$->lineno    = saved_lineno;
-                    free($1);
+        |       type_spec ID LSQUARE RSQUARE {
+                    TreeNode* t  = newStmtNode(VarK);
+                    t->type      = $1;
+                    t->attr.name = $2;
+                    t->lineno    = lineno;
+                    t->is_array  = true;
+                    $$           = t;
                 };
 
 compound_stmt:
                 LCURLY local_decl stmt_list RCURLY {
-                    $$           = newStmtNode(CmpdK);
-                    $$->child[0] = $2;
-                    $$->child[1] = $3;
+                    TreeNode* t = newStmtNode(CmpdK);
+                    t->child[0] = $2;
+                    t->child[1] = $3;
+                    $$          = t;
                 };
 
 local_decl:
                 %empty { $$ = NULL; }
         |       local_decl var_decl {
-                    YYSTYPE t = $1;
-                    if(t != NULL) {
-                        while(t->sibling != NULL)
-                            t = t->sibling;
-                        t->sibling = $2;
-                        $$ = $1;
-                    } else {
-                        $$ = $2;
-                    }
+                     TreeNode* t = $1;
+                     if(t != NULL) {
+                         while(t->sibling != NULL)
+                             t = t->sibling;
+                         t->sibling = $2;
+                         $$ = $1;
+                     } else {
+                         $$ = $2;
+                     }
                 };
 
 stmt_list:
                 %empty { $$ = NULL; }
         |       stmt_list stmt {
-                    YYSTYPE t = $1;
+                    TreeNode* t = $1;
                     if(t != NULL) {
                         while(t->sibling != NULL)
                             t = t->sibling;
@@ -193,7 +169,8 @@ stmt_list:
                     }
                 };
 
-stmt:           expr_stmt      { $$ = $1; }
+stmt:
+                expr_stmt      { $$ = $1; }
         |       compound_stmt  { $$ = $1; }
         |       selection_stmt { $$ = $1; }
         |       iteration_stmt { $$ = $1; }
@@ -203,160 +180,138 @@ stmt:           expr_stmt      { $$ = $1; }
 selection_stmt:
                 IF LPAREN expr RPAREN stmt ELSE stmt
                 {
-                    $$           = newStmtNode(IfK); 
-                    $$->lineno   = lineno;
-                    $$->child[0] = $3;
-                    $$->child[1] = $5;
-                    $$->child[2] = $7;
+                    TreeNode* t = newStmtNode(IfK); 
+                    t->lineno   = lineno;
+                    t->child[0] = $3;
+                    t->child[1] = $5;
+                    t->child[2] = $7;
+                    $$     = t;
                 };
         |       IF LPAREN expr RPAREN stmt
                 {
-                    $$           = newStmtNode(IfK); 
-                    $$->lineno   = lineno;
-                    $$->child[0] = $3;
-                    $$->child[1] = $5;
+                    TreeNode* t = newStmtNode(IfK); 
+                    t->lineno   = lineno;
+                    t->child[0] = $3;
+                    t->child[1] = $5;
+                    $$     = t;
                 }
 
 iteration_stmt:
                 WHILE LPAREN expr RPAREN stmt {
-                    $$           = newStmtNode(RepeatK); 
-                    $$->lineno   = lineno;
-                    $$->child[0] = $3;
-                    $$->child[1] = $5;
+                    TreeNode* t = newStmtNode(RepeatK); 
+                    t->lineno   = lineno;
+                    t->child[0] = $3;
+                    t->child[1] = $5;
+                    $$          = t;
                 };
 return_stmt:
                 RETURN SEMICOLON {
-                    $$ = newStmtNode(RetK); 
+                    TreeNode* t = newStmtNode(RetK); 
+                    t->lineno   = lineno;
+                    $$          = t;
                 }
         |       RETURN expr SEMICOLON {
-                    $$           = newStmtNode(RetK); 
-                    $$->lineno   = lineno;
-                    $$->child[0] = $2;
+                    TreeNode* t = newStmtNode(RetK); 
+                    t->lineno   = lineno;
+                    t->child[0] = $2;
+                    $$          = t;
                 };
 
 expr_stmt:
                 expr SEMICOLON { $$ = $1; }
-        |       SEMICOLON { $$ = NULL; };
+        |       SEMICOLON      { $$ = NULL; };
 
 expr:
                 var ASSIGN expr {
-                    $$           = newStmtNode(AssignK); 
-                    $$->lineno   = lineno;
-                    $$->child[0] = $1;
-                    $$->child[1] = $3;
+                    TreeNode* t = newStmtNode(AssignK); 
+                    t->lineno   = lineno;
+                    t->child[0] = $1;
+                    t->child[1] = $3;
+                    $$          = t;
                 }
         |       simple_expr { $$ = $1; };
 
 var:
                 ID {
-                    $$            = newExpNode(IdK);
-                    $$->attr.name = strdup(identifier);
-                    $$->lineno    = lineno;
+                    TreeNode* t  = newExpNode(IdK);
+                    t->attr.name = $1; 
+                    t->lineno    = lineno;
+                    $$           = t;
                 }
-        |       ID {
-                    saved_name = strdup(identifier);
-                }
-                LSQUARE expr RSQUARE {
-                    $$            = newExpNode(IdK); 
-                    $$->lineno    = lineno;
-                    $$->attr.name = saved_name;
-                    $$->child[0]  = $4;
+        |       ID LSQUARE expr RSQUARE {
+                    TreeNode* t  = newExpNode(IdK); 
+                    t->lineno    = lineno;
+                    t->attr.name = $1;
+                    t->child[0]  = $3;
+                    $$           = t;
                 };
 simple_expr:
                 additive_expr relop additive_expr {
-                    $$           = newExpNode(OpK); 
-                    $$->type     = Boolean;
-                    $$->lineno   = lineno;
-                    $$->child[0] = $1;
-                    $$->child[1] = $2;
-                    $$->child[2] = $3;
+                    TreeNode* t = newExpNode(OpK); 
+                    t->lineno   = lineno;
+                    t->attr.op  = $2;
+                    t->child[0] = $1;
+                    t->child[1] = $3;
+                    $$          = t;
                 }
         |       additive_expr { $$ = $1; };
 
 relop:
-                LT {
-                    $$ = newExpNode(OpK); 
-                    $$->attr.op = LT;
-                }
-        |       LE {
-                    $$ = newExpNode(OpK); 
-                    $$->attr.op = LE;
-                }
-        |       GT {
-                    $$ = newExpNode(OpK); 
-                    $$->attr.op = GT;
-                }
-        |       GE {
-                    $$ = newExpNode(OpK); 
-                    $$->attr.op = GE;
-                }
-        |       EQ {
-                    $$ = newExpNode(OpK); 
-                    $$->attr.op = EQ;
-                }
-        |       NE {
-                    $$ = newExpNode(OpK); 
-                    $$->attr.op = NE;
-                };
+                LT { $$  = LT; }
+        |       LE { $$  = LE; }
+        |       GT { $$  = GT; }
+        |       GE { $$  = GE; }
+        |       EQ { $$  = EQ; }
+        |       NE { $$  = NE; };
 
 additive_expr:
                 additive_expr addop term {
-                    $$           = newExpNode(OpK); 
-                    $$->lineno   = lineno;
-                    $$->type     = Integer;
-                    $$->child[0] = $1;
-                    $$->child[1] = $2;
-                    $$->child[2] = $3;
+                    TreeNode* t = newExpNode(OpK); 
+                    t->lineno   = lineno;
+                    t->attr.op  = $2;
+                    t->child[0] = $1;
+                    t->child[1] = $3;
+                    $$          = t;
                 }
         |       term { $$ = $1; };
 
 addop:
-                PLUS {
-                    $$          = newExpNode(OpK); 
-                    $$->attr.op = PLUS;
-                }
-        |       MINUS {
-                    $$          = newExpNode(OpK); 
-                    $$->attr.op = MINUS;
-                };
+                PLUS  { $$ = PLUS; }
+        |       MINUS { $$ = MINUS; };
 
 term:
                 term mulop factor {
-                    $$            = newExpNode(OpK); 
-                    $$->attr.op   = $1->attr.op;
-                    $$->type      = Integer;
-                    $$->child[0]  = $1;
-                    $$->child[1]  = $2;
-                    $$->child[2]  = $3;
+                    TreeNode* t = newExpNode(OpK); 
+                    t->attr.op   = $2;
+                    t->child[0]  = $1;
+                    t->child[1]  = $3;
+                    $$           = t;
                 }
         |       factor { $$ = $1; };
 
 mulop:
-                ASTER {
-                    $$          = newExpNode(OpK); 
-                    $$->attr.op = MINUS;
-                }
-        |       DIV {
-                    $$          = newExpNode(OpK); 
-                    $$->attr.op = MINUS;
-                };
+                ASTER { $$ = ASTER; }
+        |       DIV   { $$ = DIV;   };
 
 factor:
                 LPAREN expr RPAREN { $$ = $2; }
         |       var                { $$ = $1; }
         |       call               { $$ = $1; }
         |       NUM                {
-                    $$      = newExpNode(ConstK); 
-                    $$->val = atoi(token_string);
+                    TreeNode* t  = newExpNode(ConstK); 
+                    t->lineno    = lineno;
+                    t->value     = $1;
+                    t->attr.name = NULL;
+                    $$           = t;
                 };
 
 call:
-                ID { saved_name = strdup(identifier); }
-                LPAREN args RPAREN {
-                    $$            = newExpNode(CallK); 
-                    $$->lineno    = lineno;
-                    $$->attr.name = saved_name;
-                    $$->child[0]  = $4;
+                ID LPAREN args RPAREN {
+                    TreeNode* t  = newExpNode(CallK); 
+                    t->lineno    = lineno;
+                    t->attr.name = $1;
+                    t->child[0]  = $3;
+                    $$           = t;
                 };
 
 args:
@@ -364,25 +319,23 @@ args:
         |       args_list { $$ = $1; };
 
 args_list:
-                 args_list COMMA expr {
-                     YYSTYPE t = $1;
-                     if(t != NULL) {
-                         while(t->sibling != NULL)
-                             t = t->sibling;
-                         t->sibling = $3;
-                         $$ = $1;
-                     } else {
-                         $$ = $3;
-                     }
-                        }
+                args_list COMMA expr {
+                    TreeNode* t = $1;
+                    if(t != NULL) {
+                        while(t->sibling != NULL)
+                            t = t->sibling;
+                        t->sibling = $3;
+                        $$ = $1;
+                    } else {
+                        $$ = $3;
+                    }
+                }
         |       expr { $$ = $1; };
 
 %%
-int yyerror(char* message)
+int yyerror(char const* message)
 {
     fprintf(listing, "Syntax error at line %zd: %s\n", lineno, message);
-    fprintf(listing, "Current Token: ");
-    printToken(yychar, token_string);
     error = true;
     return 0;
 }
@@ -390,10 +343,7 @@ int yyerror(char* message)
 static int yylex(void)
 {
     TokenType token;
-    do
-    {
-        token = getToken();
-    } while(token == COMMENT);
+    do {  token = getToken(); } while(token == COMMENT);
     return token;
 }
 

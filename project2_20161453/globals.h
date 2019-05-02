@@ -17,42 +17,39 @@
 
 #define MAXRESERVED 8
 
-struct treeNode;
-
-/* typedef enum
-   {
-   FILEEND,
-   ERROR,
-   IF,
-   WHILE,
-   ELSE,
-   RETURN,
-   VOID,
-   INT,
-   ID,
-   NUM,
-   ASSIGN,
-   EQ,
-   NE,
-   LT,
-   LE,
-   GT,
-   GE,
-   PLUS,
-   MINUS,
-   ASTER,
-   DIV,
-   LPAREN,
-   RPAREN,
-   LSQUARE,
-   RSQUARE,
-   LCURLY,
-   RCURLY,
-   SEMICOLON,
-   COLON,
-   COMMENT,
-   COMMENT_ERROR,
-   } TokenType; */
+typedef enum 
+{
+    IF = 258,
+    WHILE = 259,
+    ELSE = 260,
+    RETURN = 261,
+    ASSIGN = 262,
+    EQ = 263,
+    NE = 264,
+    LT = 265,
+    LE = 266,
+    GT = 267,
+    GE = 268,
+    PLUS = 269,
+    MINUS = 270,
+    ASTER = 271,
+    DIV = 272,
+    LPAREN = 273,
+    RPAREN = 274,
+    LSQUARE = 275,
+    RSQUARE = 276,
+    LCURLY = 277,
+    RCURLY = 278,
+    SEMICOLON = 279,
+    COMMA = 280,
+    COMMENT = 281,
+    ERROR = 282,
+    COMMENT_ERROR = 283,
+    VOID = 284,
+    INT = 285,
+    ID = 286,
+    NUM = 287
+} TokenType;
 
 extern FILE* source; /* source code text file */
 extern FILE* listing; /* listing output text file */
@@ -61,9 +58,9 @@ extern size_t lineno; /* source line number for listing */
 
 typedef enum { StmtK, ExpK } NodeKind;
 typedef enum { IfK, RepeatK, AssignK, VarK, FunK, CmpdK, RetK } StmtKind;
-typedef enum { OpK, ConstK, IdK, CallK, TypeK } ExpKind;
+typedef enum { OpK, ConstK, IdK, CallK } ExpKind;
 
-typedef enum { Void, Integer, Boolean } ExpType;
+//typedef enum { Void, Integer} ExpType;
 
 #define MAXCHILDREN 3
 
@@ -74,9 +71,10 @@ typedef struct treeNode
     int lineno;
     NodeKind nodekind;
     union { StmtKind stmt; ExpKind exp;} kind;
-    union { int op; char* name; } attr;
-    int val;
-    ExpType type;
+    union { TokenType op; char* name; } attr;
+    TokenType type;
+    int value;
+    _Bool is_array;
 } TreeNode;
 
 /**************************************************/
@@ -88,9 +86,6 @@ extern _Bool trace_scan;
 extern _Bool trace_parse;
 extern _Bool error;
 
-#define YYSTYPE TreeNode*
-#include "bison.h"
-
-typedef enum yytokentype TokenType;
+#define YYTOKENTYPE TokenType
 
 #endif

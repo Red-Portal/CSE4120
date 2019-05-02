@@ -24,8 +24,8 @@ serializeToken(TokenType token)
         SERIALIZE_CASE(NUM);
         SERIALIZE_CASE(ID);
         SERIALIZE_CASE(ERROR);
-    case ASSIGN:    return "==";
-    case EQ:        return "=";
+    case ASSIGN:    return "=";
+    case EQ:        return "==";
     case GT:        return ">";
     case LT:        return "<";
     case GE:        return ">=";
@@ -42,7 +42,6 @@ serializeToken(TokenType token)
     case RCURLY:    return "}";
     case SEMICOLON: return ";";
     case COMMA:     return ",";
-        return "EOF";
     default:
         break;
     }
@@ -64,10 +63,12 @@ TreeNode* newStmtNode(StmtKind kind)
     {
         for (size_t i = 0; i < MAXCHILDREN; ++i)
             t->child[i] = NULL;
-        t->sibling = NULL;
-        t->nodekind = StmtK;
+        t->is_array  = false;
         t->kind.stmt = kind;
-        t->lineno = lineno;
+        t->lineno    = lineno;
+        t->nodekind  = StmtK;
+        t->sibling   = NULL;
+        t->type      = VOID;
     }
     return t;
 }
@@ -80,36 +81,59 @@ TreeNode* newExpNode(ExpKind kind)
         fprintf(listing, "Out of memory error at line %zd\n", lineno);
     else
     {
-        for (i=0;i<MAXCHILDREN;i++) t->child[i] = NULL;
-        t->sibling = NULL;
-        t->nodekind = ExpK;
+        for (i=0;i<MAXCHILDREN;i++)
+            t->child[i] = NULL;
+        t->is_array = false;
         t->kind.exp = kind;
-        t->lineno = lineno;
-        t->type = Void;
+        t->lineno   = lineno;
+        t->nodekind = ExpK;
+        t->sibling  = NULL;
+        t->type     = VOID;
     }
     return t;
 }
 
-/* Variable indentno is used by printTree to
- * store current number of spaces to indent
- */
-static size_t indentno = 0;
+void destroyNode(TreeNode* node)
+{
+    if(node == NULL)
+        return;
 
-/* macros to increase/decrease indentation */
+    if((node->nodekind == StmtK
+        && node->kind.stmt == VarK)
+       || (node->nodekind == ExpK
+           && node->kind.exp == IdK))
+    {
+        free(node->attr.name);
+        node->attr.name = NULL;
+    }
+
+    if(node->sibling != NULL)
+    {
+        destroyNode(node->sibling);
+        node->sibling = NULL;
+    }
+
+    for(size_t i = 0; i < MAXCHILDREN; ++i)
+    {
+        destroyNode(node->child[i]);
+        node->child[i] = NULL;
+    }
+    free(node);
+    node = NULL;
+}
+
+static size_t indentno = 0;
 #define INDENT indentno+=2
 #define UNINDENT indentno-=2
 
-/* printSpaces indents by printing spaces */
 static void printSpaces(void)
 {
     for (size_t i = 0; i < indentno; ++i)
         fprintf(listing," ");
 }
 
-/* procedure printTree prints a syntax tree to the 
- * listing file using indentation to indicate subtrees
- */
-void printTree( TreeNode * tree )
+
+void printTree(TreeNode* tree)
 {
     INDENT;
     while (tree != NULL)
@@ -119,28 +143,41 @@ void printTree( TreeNode * tree )
         {
             switch (tree->kind.stmt) {
             case IfK:
-                fprintf(listing,"If\n");
+                fprintf(listing,"if statement\n");
                 break;
             case RepeatK:
-                fprintf(listing,"Repeat\n");
+                fprintf(listing,"repeat statement\n");
                 break;
             case AssignK:
-                fprintf(listing,"Assign to: %s\n",tree->attr.name);
+                fprintf(listing,"assignment statement\n");
                 break;
             case VarK:
-                fprintf(listing,"Variable: %s\n",tree->attr.name);
+                fprintf(listing,"variable declaration statement\n");
+                printSpaces();
+                fprintf(listing," * name: %s\n", tree->attr.name);
+                printSpaces();
+                fprintf(listing," * type: %s\n", serializeToken(tree->type));
+                if(tree->is_array)
+                {
+                    printSpaces();
+                    fprintf(listing," * array size: %d\n", tree->value);
+                }
                 break;
             case FunK:
-                fprintf(listing,"Function: %s\n", tree->attr.name);
+                fprintf(listing,"function declaration statement\n");
+                printSpaces();
+                fprintf(listing," * name: %s\n", tree->attr.name);
+                printSpaces();
+                fprintf(listing," * return type: %s\n", serializeToken(tree->type));
                 break;
             case CmpdK:
-                fprintf(listing,"Compound Statement\n");
+                fprintf(listing,"compound statement\n");
                 break;
             case RetK:
-                fprintf(listing,"Return Statement\n");
+                fprintf(listing,"return statement\n");
                 break;
             default:
-                fprintf(listing,"Unknown statement kind\n");
+                fprintf(listing,"Unknown kind of statement\n");
                 break;
             }
         }
@@ -149,28 +186,28 @@ void printTree( TreeNode * tree )
             switch (tree->kind.exp)
             {
             case OpK:
-                fprintf(listing,"Op: ");
-                printToken(tree->attr.op,"\0");
+                fprintf(listing, "operation: %s\n", serializeToken(tree->attr.op));
                 break;
             case ConstK:
-                fprintf(listing,"Const: %d\n", tree->val);
+                fprintf(listing, "constant: %d\n", tree->value);
                 break;
             case IdK:
-                fprintf(listing,"id: %s\n",tree->attr.name);
+                fprintf(listing,"id: %s\n", tree->attr.name);
                 break;
             case CallK:
-                fprintf(listing,"Call: %s\n",tree->attr.name);
+                fprintf(listing, "call: %s\n", tree->attr.name);
                 break;
             default:
-                fprintf(listing,"Unknown ExpNode kind\n");
+                fprintf(listing,"Unknown kind of expression\n");
                 break;
             }
         }
         else
-            fprintf(listing,"Unknown node kind\n");
+            fprintf(listing,"Unknown kind of node\n");
 
         for (size_t i = 0; i < MAXCHILDREN; ++i)
             printTree(tree->child[i]);
+
         tree = tree->sibling;
     }
     UNINDENT;

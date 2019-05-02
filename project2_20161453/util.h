@@ -25,6 +25,8 @@ TreeNode* newStmtNode(StmtKind);
  */
 TreeNode* newExpNode(ExpKind);
 
+void destroyNode(TreeNode* node);
+
 /* procedure printTree prints a syntax tree to the 
  * listing file using indentation to indicate subtrees
  */
