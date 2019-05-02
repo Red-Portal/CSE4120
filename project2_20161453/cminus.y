@@ -19,12 +19,39 @@ static TreeNode* saved_tree;
     TokenType type;
 }
 
-%token IF WHILE ELSE RETURN ASSIGN EQ NE LT LE GT GE PLUS MINUS ASTER
-%token DIV LPAREN RPAREN LSQUARE RSQUARE LCURLY RCURLY SEMICOLON COMMA
-%token COMMENT ERROR COMMENT_ERROR
-%token <type> VOID INT
-%token <name> ID
-%token <value> NUM
+%left GE GT LE LT EQ NE
+%left PLUS MINUS
+%left ASTER DIV
+
+%token IF            258 "if"
+%token WHILE         259 "while"
+%token ELSE          260 "else"
+%token RETURN        261 "return"  
+%token ASSIGN        262 "="          
+%token EQ            263 "=="        
+%token NE            264 "!="        
+%token LT            265 "<"         
+%token LE            266 "<="        
+%token GT            267 ">"         
+%token GE            268 ">="        
+%token PLUS          269 "+"         
+%token MINUS         270 "-"         
+%token ASTER         271 "*"         
+%token DIV           272 "/"         
+%token LPAREN        273 "("         
+%token RPAREN        274 ")"         
+%token LSQUARE       275 "["         
+%token RSQUARE       276 "]"         
+%token LCURLY        277 "{"         
+%token RCURLY        278 "}"         
+%token SEMICOLON     279 ";"          
+%token COMMA         280 ","         
+%token COMMENT       281
+%token COMMENT_ERROR 283
+%token <type> VOID   284 "void"
+%token <type> INT    285 "int" 
+%token <name> ID     286 "identifier" 
+%token <value> NUM   287 "constant" 
 %type  <type> type_spec relop addop mulop
 %type  <node> prog decl_list decl var_decl fun_decl params param_list 
 %type  <node> param compound_stmt local_decl stmt_list stmt expr_stmt 
@@ -46,17 +73,17 @@ start: prog
 prog: decl_list { saved_tree = $1; };
 
 decl_list:
-                decl_list decl {
-                    TreeNode* t = $1;
-                    if(t != NULL) {
-                        while(t->sibling != NULL)
-                            t = t->sibling;
-                        t->sibling = $2;
-                        $$ = $1;
-                    } else {
-                        $$ = $2;
-                    }
-                }
+decl_list decl {
+    TreeNode* t = $1;
+    if(t != NULL) {
+        while(t->sibling != NULL)
+            t = t->sibling;
+        t->sibling = $2;
+        $$ = $1;
+    } else {
+        $$ = $2;
+    }
+}
         |       decl { $$ = $1; };
 
 decl:
